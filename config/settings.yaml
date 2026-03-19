@@ -5,12 +5,16 @@
 # No requiere tocar codigo.
 
 # --- Portal INPI ---
+# URLs reales del portal INPI Argentina (verificadas marzo 2026)
+# Listado: https://portaltramites.inpi.gob.ar/Boletines?Tipo_Item=3
+# PDFs:    https://portaltramites.inpi.gob.ar/Uploads/Boletines/{NUMERO}_3_.pdf
 inpi:
   url_base: "https://portaltramites.inpi.gob.ar"
-  url_boletines: "https://portaltramites.inpi.gob.ar/Boletines/Boletines.aspx"
+  url_boletines: "https://portaltramites.inpi.gob.ar/Boletines?Tipo_Item=3"
   tipo_item: 3  # 3 = Marcas
   filtro_comentario: "MARCAS NUEVAS"
   dia_publicacion: "miercoles"  # dia esperado de publicacion
+  ultimo_boletin_conocido: 6002  # ultimo numero confirmado (04/03/2026)
   reintentos_descarga: 3
   timeout_segundos: 30
   user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
