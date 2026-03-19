@@ -116,12 +116,25 @@ class ComparadorTexto:
                 score_token=score_token, distancia_edit=0
             )
 
+        # Penalizar partial_ratio cuando las palabras dominantes difieren mucho.
+        # Esto evita que "MEDELLIN PHARMA" matchee con "MEDILINE" solo porque
+        # comparten letras pero no son la misma marca.
+        palabras_t1 = t1_limpio.split()
+        palabras_t2 = t2_limpio.split()
+        # Comparar la palabra mas larga de cada lado
+        p1 = max(palabras_t1, key=len) if palabras_t1 else t1_limpio
+        p2 = max(palabras_t2, key=len) if palabras_t2 else t2_limpio
+        ratio_palabras_clave = fuzz.ratio(p1, p2) / 100.0
+
+        # El score parcial se pondera por la similitud de las palabras clave
+        score_parcial_ajustado = score_parcial * (0.5 + 0.5 * ratio_palabras_clave)
+
         # Score compuesto ponderado
         score_final = max(
-            score_ratio * 0.9,  # Ratio general
-            score_parcial * 0.8,  # Parcial (penalizado un poco)
-            score_token * 0.85,  # Token sort
-            score_contencion * 0.75,  # Contencion
+            score_ratio * 0.9,                  # Ratio general
+            score_parcial_ajustado * 0.8,       # Parcial (penalizado + ajustado)
+            score_token * 0.85,                 # Token sort
+            score_contencion * 0.75,            # Contencion
         )
 
         # Determinar tipo de match dominante

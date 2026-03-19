@@ -2,10 +2,11 @@
 Extraccion de texto e imagenes desde PDFs de boletines INPI.
 
 Estrategia:
-1. Extraer texto con pdfplumber (rapido, preciso para PDFs con texto)
-2. Si una pagina no tiene texto, aplicar OCR con Tesseract
-3. Extraer imagenes embebidas con PyMuPDF (fitz)
-4. Segmentar por entradas marcarias (cada publicacion individual)
+1. Extraer texto con PyMuPDF/fitz (primario, rapido, sin deps extra)
+2. Fallback con pdfplumber si fitz no extrae texto
+3. Si una pagina no tiene texto, aplicar OCR con Tesseract
+4. Extraer imagenes embebidas con PyMuPDF
+5. Segmentar por entradas marcarias (cada publicacion individual)
 """
 
 import re
@@ -14,10 +15,7 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional
 
-import pdfplumber
 import fitz  # PyMuPDF
-from PIL import Image
-import io
 
 logger = logging.getLogger("inpi.parser")
 
@@ -45,7 +43,7 @@ class ResultadoParseo:
     texto_por_pagina: dict  # {pagina: texto}
     imagenes_extraidas: list[Path]
     errores: list[str]
-    usó_ocr: bool = False
+    uso_ocr: bool = False
 
 
 class ParserPDF:
@@ -67,12 +65,19 @@ class ParserPDF:
         imagenes_total = []
         uso_ocr = False
 
-        # Paso 1: Extraer texto con pdfplumber
+        # Paso 1: Extraer texto con PyMuPDF (primario)
         try:
-            texto_paginas = self._extraer_texto_pdfplumber(ruta_pdf)
+            texto_paginas = self._extraer_texto_fitz(ruta_pdf)
         except Exception as e:
-            errores.append(f"Error pdfplumber: {e}")
-            logger.error(f"Error extrayendo texto: {e}")
+            errores.append(f"Error fitz: {e}")
+            logger.error(f"Error extrayendo texto con fitz: {e}")
+
+        # Paso 1b: Fallback con pdfplumber si fitz no dio texto
+        if not any(t.strip() for t in texto_paginas.values()):
+            try:
+                texto_paginas = self._extraer_texto_pdfplumber(ruta_pdf)
+            except Exception as e:
+                logger.warning(f"Fallback pdfplumber tampoco funciono: {e}")
 
         # Paso 2: OCR en paginas sin texto
         if self.ocr_fallback:
@@ -106,35 +111,52 @@ class ParserPDF:
             texto_por_pagina=texto_paginas,
             imagenes_extraidas=imagenes_total,
             errores=errores,
-            usó_ocr=uso_ocr,
+            uso_ocr=uso_ocr,
         )
 
-    def _extraer_texto_pdfplumber(self, ruta: Path) -> dict[int, str]:
-        """Extrae texto de cada pagina con pdfplumber."""
+    def _extraer_texto_fitz(self, ruta: Path) -> dict[int, str]:
+        """Extrae texto de cada pagina con PyMuPDF (fitz)."""
         textos = {}
-        with pdfplumber.open(str(ruta)) as pdf:
-            for i, pagina in enumerate(pdf.pages, 1):
-                texto = pagina.extract_text() or ""
-                textos[i] = texto
+        doc = fitz.open(str(ruta))
+        for i in range(len(doc)):
+            texto = doc[i].get_text("text") or ""
+            textos[i + 1] = texto
+        doc.close()
         return textos
+
+    def _extraer_texto_pdfplumber(self, ruta: Path) -> dict[int, str]:
+        """Fallback: extrae texto con pdfplumber."""
+        try:
+            import pdfplumber
+            textos = {}
+            with pdfplumber.open(str(ruta)) as pdf:
+                for i, pagina in enumerate(pdf.pages, 1):
+                    texto = pagina.extract_text() or ""
+                    textos[i] = texto
+            return textos
+        except ImportError:
+            logger.warning("pdfplumber no disponible")
+            return {}
+        except Exception as e:
+            logger.warning(f"Error pdfplumber: {e}")
+            return {}
 
     def _ocr_pagina(self, ruta_pdf: Path, num_pagina: int) -> str:
         """Aplica OCR a una pagina especifica."""
         try:
             import pytesseract
+            from PIL import Image
             doc = fitz.open(str(ruta_pdf))
             pagina = doc[num_pagina - 1]
-            # Renderizar pagina como imagen a 300 DPI
             mat = fitz.Matrix(300 / 72, 300 / 72)
             pix = pagina.get_pixmap(matrix=mat)
             img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
             doc.close()
-
             texto = pytesseract.image_to_string(img, lang=self.idioma_ocr)
             logger.debug(f"OCR pagina {num_pagina}: {len(texto)} caracteres")
             return texto
         except ImportError:
-            logger.warning("pytesseract no disponible, saltando OCR")
+            logger.debug("pytesseract no disponible, saltando OCR")
             return ""
         except Exception as e:
             logger.warning(f"Error OCR pagina {num_pagina}: {e}")
@@ -162,7 +184,6 @@ class ParserPDF:
                     ancho = img_data.get("width", 0)
                     alto = img_data.get("height", 0)
 
-                    # Filtrar imagenes muy pequenas (decorativas)
                     if ancho < self.min_ancho or alto < self.min_alto:
                         continue
 
@@ -175,7 +196,6 @@ class ParserPDF:
 
                     imagenes.append(ruta_img)
                     count += 1
-                    logger.debug(f"Imagen extraida: {nombre} ({ancho}x{alto})")
                 except Exception as e:
                     logger.warning(f"Error extrayendo imagen xref={xref}: {e}")
 
@@ -184,11 +204,7 @@ class ParserPDF:
 
     def _segmentar_entradas(self, texto_paginas: dict[int, str],
                             imagenes: list[Path]) -> list[EntradaMarcaria]:
-        """
-        Segmenta el texto en entradas marcarias individuales.
-        Los boletines INPI tienen un formato semi-estructurado con
-        separadores entre publicaciones.
-        """
+        """Segmenta el texto en entradas marcarias individuales."""
         from .utils import extraer_clase_niza, extraer_denominacion, detectar_tipo_marca
 
         entradas = []
@@ -197,13 +213,11 @@ class ParserPDF:
             if not texto or len(texto.strip()) < 10:
                 continue
 
-            # Buscar imagenes de esta pagina
             imgs_pagina = [
                 img for img in imagenes
                 if f"_p{pagina}_" in img.name
             ]
 
-            # Intentar segmentar por patrones del INPI
             bloques = self._dividir_en_bloques(texto)
 
             for bloque in bloques:
@@ -233,20 +247,13 @@ class ParserPDF:
         return entradas
 
     def _dividir_en_bloques(self, texto: str) -> list[str]:
-        """
-        Divide el texto de una pagina en bloques individuales.
-        Los boletines INPI suelen separar entradas con:
-        - Lineas de guiones/asteriscos
-        - Numeros de acta/expediente
-        - Patrones como "Acta Nro." o "SOLICITUD"
-        """
-        # Patrones de separacion comunes en boletines INPI
+        """Divide el texto de una pagina en bloques por patrones INPI."""
         separadores = [
-            r"\n\s*[-=_]{10,}\s*\n",                    # Lineas de guiones
-            r"\n\s*\*{5,}\s*\n",                          # Lineas de asteriscos
-            r"\n(?=Acta\s+N[ro°]+\.?\s*\d+)",            # Inicio de acta
-            r"\n(?=SOLICITUD\s+(?:DE\s+)?(?:MARCA|REGISTRO))", # Solicitud
-            r"\n(?=N[°º]\s*\d{4,})",                     # Numero de expediente
+            r"\n\s*[-=_]{10,}\s*\n",
+            r"\n\s*\*{5,}\s*\n",
+            r"\n(?=Acta\s+N[ro°]+\.?\s*\d+)",
+            r"\n(?=SOLICITUD\s+(?:DE\s+)?(?:MARCA|REGISTRO))",
+            r"\n(?=N[°º]\s*\d{4,})",
         ]
 
         patron_compuesto = "|".join(separadores)

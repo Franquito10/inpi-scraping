@@ -75,12 +75,30 @@ class MotorScoring:
             "color": resultado_color.score,
         }
 
-        # Score base ponderado
+        # Redistribuir pesos dinamicamente cuando no hay datos visuales.
+        # Si visual y color son 0 (no habia imagenes), su peso se redistribuye
+        # proporcionalmente entre texto y fonetica para no penalizar injustamente.
+        peso_texto = self.pesos.get("texto", 0.35)
+        peso_fonetica = self.pesos.get("fonetica", 0.25)
+        peso_visual = self.pesos.get("visual", 0.25)
+        peso_color = self.pesos.get("color", 0.15)
+
+        tiene_visual = scores["visual"] > 0 or scores["color"] > 0
+        if not tiene_visual:
+            # Sin imagenes: redistribuir peso visual+color a texto+fonetica
+            peso_extra = peso_visual + peso_color
+            total_tf = peso_texto + peso_fonetica
+            if total_tf > 0:
+                peso_texto += peso_extra * (peso_texto / total_tf)
+                peso_fonetica += peso_extra * (peso_fonetica / total_tf)
+            peso_visual = 0
+            peso_color = 0
+
         score_base = (
-            scores["texto"] * self.pesos.get("texto", 0.35) +
-            scores["fonetico"] * self.pesos.get("fonetica", 0.25) +
-            scores["visual"] * self.pesos.get("visual", 0.25) +
-            scores["color"] * self.pesos.get("color", 0.15)
+            scores["texto"] * peso_texto +
+            scores["fonetico"] * peso_fonetica +
+            scores["visual"] * peso_visual +
+            scores["color"] * peso_color
         )
 
         # Bonus/penalizacion por clase Niza
