@@ -1,0 +1,96 @@
+# =============================================================
+# INPI Scraping - Configuracion General
+# =============================================================
+# Editar este archivo para ajustar el comportamiento del sistema.
+# No requiere tocar codigo.
+
+# --- Portal INPI ---
+inpi:
+  url_base: "https://portaltramites.inpi.gob.ar"
+  url_boletines: "https://portaltramites.inpi.gob.ar/Boletines/Boletines.aspx"
+  tipo_item: 3  # 3 = Marcas
+  filtro_comentario: "MARCAS NUEVAS"
+  dia_publicacion: "miercoles"  # dia esperado de publicacion
+  reintentos_descarga: 3
+  timeout_segundos: 30
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+# --- Rutas locales ---
+rutas:
+  datos: "datos"
+  pdfs: "datos/pdfs"
+  logos_referencia: "logos_referencia"
+  logos_extraidos: "datos/logos_extraidos"
+  reportes: "datos/reportes"
+  db: "datos/inpi.db"
+
+# --- Extraccion PDF ---
+extraccion:
+  ocr_fallback: true          # usar OCR solo si no hay texto seleccionable
+  idioma_ocr: "spa"           # idioma Tesseract
+  min_ancho_imagen: 50        # px minimo para considerar una imagen como logo
+  min_alto_imagen: 50
+  max_imagenes_por_pagina: 10 # limite de seguridad
+
+# --- Comparacion textual ---
+texto:
+  umbral_exacto: 0.85         # ratio de similitud para match "exacto"
+  umbral_parcial: 0.65        # ratio de similitud parcial
+  normalizar_acentos: true
+  normalizar_mayusculas: true
+  ignorar_palabras: ["SA", "SRL", "SAS", "DE", "DEL", "LA", "EL", "LOS", "LAS", "Y", "E"]
+
+# --- Comparacion fonetica ---
+fonetica:
+  umbral: 0.60
+  algoritmo: "hibrido"        # opciones: soundex_es, metaphone_es, hibrido
+  penalizar_longitud_diferente: true
+  max_diferencia_longitud: 3  # si difieren en mas de N chars, penalizar
+
+# --- Comparacion visual ---
+visual:
+  umbral_ssim: 0.45
+  umbral_orb: 0.30
+  redimensionar_a: [200, 200] # px para comparacion
+  binarizar: true
+
+# --- Comparacion cromatica ---
+color:
+  umbral_histograma: 0.40
+  n_colores_dominantes: 5
+  umbral_color_dominante: 0.35
+  espacio_color: "HSV"        # HSV es mas robusto que RGB
+
+# --- Scoring final ---
+scoring:
+  pesos:
+    texto: 0.35
+    fonetica: 0.25
+    visual: 0.25
+    color: 0.15
+  umbral_alerta: 0.55         # score minimo para marcar coincidencia
+  niveles:
+    alto: 0.75
+    medio: 0.55
+    bajo: 0.40
+
+# --- Dashboard ---
+dashboard:
+  titulo: "INPI Monitor - Vigilancia Marcaria"
+  archivo_salida: "datos/reportes/dashboard.html"
+  max_coincidencias_resumen: 50
+  agrupar_por: "marca"        # marca | palabra_clave | score
+
+# --- IA Legal (opcional) ---
+ia_legal:
+  habilitado: false
+  proveedor: "openai"         # openai | anthropic
+  modelo: "gpt-4o-mini"
+  api_key_env: "OPENAI_API_KEY"  # nombre de variable de entorno
+  max_tokens: 1000
+  temperatura: 0.2
+
+# --- Logging ---
+logging:
+  nivel: "INFO"               # DEBUG, INFO, WARNING, ERROR
+  archivo: "datos/inpi.log"

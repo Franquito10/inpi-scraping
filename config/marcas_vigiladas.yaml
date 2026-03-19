@@ -1,0 +1,41 @@
+# =============================================================
+# Marcas vigiladas - Configuracion de marcas a monitorear
+# =============================================================
+# Agregar o quitar marcas editando este archivo.
+# Cada marca puede tener variantes, clases y logo de referencia.
+
+marcas:
+  - nombre: "Televet"
+    variantes: ["TeleVet", "Tele Vet", "Tele-Vet", "TELEVET"]
+    clases_niza: [5, 44]   # clases de interes
+    logo: "logos_referencia/televet.png"
+    prioridad: "alta"
+    notas: "Marca principal veterinaria"
+
+  - nombre: "Redex"
+    variantes: ["REDEX", "Re-Dex", "RedEx"]
+    clases_niza: [9, 35, 42]
+    logo: "logos_referencia/redex.png"
+    prioridad: "alta"
+    notas: ""
+
+  - nombre: "Auxilio24"
+    variantes: ["AUXILIO24", "Auxilio 24", "AUXILIO-24", "Auxilio24hs"]
+    clases_niza: [36, 39, 45]
+    logo: "logos_referencia/auxilio24.png"
+    prioridad: "alta"
+    notas: "Servicio de asistencia"
+
+  - nombre: "MediLine"
+    variantes: ["MEDILINE", "Medi Line", "Medi-Line", "Medilain"]
+    clases_niza: [5, 10, 44]
+    logo: "logos_referencia/mediline.png"
+    prioridad: "media"
+    notas: "Linea medica"
+
+  - nombre: "Receta Online"
+    variantes: ["RECETA ONLINE", "RecetaOnline", "Receta-Online"]
+    clases_niza: [9, 42, 44]
+    logo: "logos_referencia/recetaonline.png"
+    prioridad: "media"
+    notas: "Plataforma de recetas digitales"
