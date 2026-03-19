@@ -2,12 +2,14 @@
 INPI Monitor - Punto de entrada principal.
 
 Uso:
-  python main.py                    # Pipeline completo (miercoles actual)
-  python main.py --fecha 19/03/2026 # Pipeline para fecha especifica
-  python main.py --pendientes       # Solo procesar boletines ya descargados
-  python main.py --pdf ruta.pdf     # Procesar un PDF manualmente
-  python main.py --dashboard        # Solo regenerar dashboard
-  python main.py --setup            # Verificar instalacion y dependencias
+  python main.py                        # Pipeline completo (miercoles actual)
+  python main.py --fecha 19/03/2026     # Pipeline para fecha especifica
+  python main.py --pendientes           # Solo procesar boletines ya descargados
+  python main.py --pdf ruta.pdf         # Procesar un PDF manualmente
+  python main.py --dashboard            # Solo regenerar dashboard
+  python main.py --analisis-ia          # Ejecutar analisis IA sobre coincidencias pendientes
+  python main.py --regenerar-ia 42      # Regenerar analisis IA para coincidencia #42
+  python main.py --setup                # Verificar instalacion y dependencias
 """
 
 import sys
@@ -22,39 +24,29 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument(
-        "--fecha", type=str, default=None,
-        help="Fecha de boletines a buscar (DD/MM/YYYY)"
-    )
-    parser.add_argument(
-        "--pendientes", action="store_true",
-        help="Solo procesar boletines ya descargados"
-    )
-    parser.add_argument(
-        "--pdf", type=str, default=None,
-        help="Ruta a un PDF para procesar manualmente"
-    )
-    parser.add_argument(
-        "--dashboard", action="store_true",
-        help="Solo regenerar el dashboard HTML"
-    )
-    parser.add_argument(
-        "--setup", action="store_true",
-        help="Verificar instalacion y dependencias"
-    )
-    parser.add_argument(
-        "--verbose", "-v", action="store_true",
-        help="Activar logging detallado"
-    )
+    parser.add_argument("--fecha", type=str, default=None,
+                        help="Fecha de boletines (DD/MM/YYYY)")
+    parser.add_argument("--pendientes", action="store_true",
+                        help="Solo procesar boletines ya descargados")
+    parser.add_argument("--pdf", type=str, default=None,
+                        help="Ruta a un PDF para procesar manualmente")
+    parser.add_argument("--dashboard", action="store_true",
+                        help="Solo regenerar el dashboard HTML")
+    parser.add_argument("--analisis-ia", action="store_true",
+                        help="Ejecutar analisis IA legal sobre coincidencias pendientes")
+    parser.add_argument("--regenerar-ia", type=int, default=None, metavar="ID",
+                        help="Regenerar analisis IA para una coincidencia especifica")
+    parser.add_argument("--setup", action="store_true",
+                        help="Verificar instalacion y dependencias")
+    parser.add_argument("--verbose", "-v", action="store_true",
+                        help="Activar logging detallado")
 
     args = parser.parse_args()
 
-    # Setup check
     if args.setup:
         verificar_setup()
         return
 
-    # Importar despues de setup check (puede fallar si faltan deps)
     from src.config import cargar_settings, configurar_logging
     from src.pipeline import Pipeline
 
@@ -72,6 +64,24 @@ def main():
             ruta = pipeline.regenerar_dashboard()
             print(f"\nDashboard regenerado: {ruta}")
 
+        elif args.analisis_ia:
+            resultado = pipeline.ejecutar_analisis_ia()
+            if "error" in resultado:
+                print(f"\nERROR: {resultado['error']}")
+            else:
+                print(f"\nAnalisis IA completado: {resultado['analisis_generados']} generados")
+                ruta = pipeline.regenerar_dashboard()
+                print(f"Dashboard actualizado: {ruta}")
+
+        elif args.regenerar_ia is not None:
+            resultado = pipeline.ejecutar_analisis_ia(id_coincidencia=args.regenerar_ia)
+            if resultado.get("error"):
+                print(f"\nERROR: {resultado['error']}")
+            else:
+                print(f"\nAnalisis IA regenerado para coincidencia #{args.regenerar_ia}")
+                print(f"  Riesgo: {resultado.get('riesgo', '?')}")
+                print(f"  Recomendacion: {resultado.get('recomendacion', '?')}")
+
         elif args.pdf:
             ruta_pdf = Path(args.pdf)
             if not ruta_pdf.exists():
@@ -81,6 +91,7 @@ def main():
             print(f"\nProcesamiento manual completado:")
             print(f"  Entradas encontradas: {resultado['entradas']}")
             print(f"  Coincidencias: {resultado['coincidencias']}")
+            print(f"  Analisis IA: {resultado['analisis_ia']}")
 
         else:
             fecha = None
@@ -102,6 +113,7 @@ def main():
             print(f"  Boletines descargados:   {resultado['boletines_descargados']}")
             print(f"  Entradas procesadas:     {resultado['entradas_procesadas']}")
             print(f"  Coincidencias detectadas:{resultado['coincidencias_encontradas']}")
+            print(f"  Analisis IA generados:   {resultado['analisis_ia_generados']}")
             if resultado.get("dashboard"):
                 print(f"  Dashboard:               {resultado['dashboard']}")
             if resultado.get("errores"):
@@ -110,7 +122,7 @@ def main():
                     print(f"    - {err}")
 
     except KeyboardInterrupt:
-        print("\nEjecucion interrumpida por el usuario.")
+        print("\nEjecucion interrumpida.")
     except Exception as e:
         logger.error(f"Error fatal: {e}", exc_info=True)
         print(f"\nERROR: {e}")
@@ -144,7 +156,8 @@ def verificar_setup():
     opcionales = {
         "pytesseract": "OCR (requiere Tesseract instalado)",
         "selenium": "Navegador automatizado (fallback)",
-        "openai": "Analisis IA legal",
+        "openai": "IA Legal - OpenAI/Local",
+        "anthropic": "IA Legal - Anthropic",
     }
 
     errores = 0
@@ -164,22 +177,22 @@ def verificar_setup():
         except ImportError:
             print(f"  [--] {modulo:15s} - {descripcion} (no instalado)")
 
-    # Verificar estructura
     print("\nEstructura de archivos:")
     from pathlib import Path
     archivos = [
         "config/settings.yaml",
         "config/marcas_vigiladas.yaml",
         "src/pipeline.py",
+        "src/analisis_ia.py",
+        "src/dashboard.py",
+        "src/db.py",
     ]
     for arch in archivos:
         ruta = Path(arch)
-        estado = "OK" if ruta.exists() else "NO ENCONTRADO"
+        estado = "OK" if ruta.exists() else "FALTA"
         print(f"  [{estado}] {arch}")
 
-    print(f"\n{'LISTO' if errores == 0 else f'{errores} dependencia(s) faltante(s)'}")
-    if errores:
-        print("Ejecutar: pip install -r requirements.txt")
+    print(f"\n{'LISTO para ejecutar' if errores == 0 else f'{errores} dependencia(s) faltante(s). Ejecutar: pip install -r requirements.txt'}")
 
 
 if __name__ == "__main__":

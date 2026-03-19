@@ -1,15 +1,13 @@
 """
 Pipeline principal: orquesta todo el flujo de scraping a dashboard.
 
-Paso 1: Detectar boletines nuevos
-Paso 2: Descargar PDFs
-Paso 3: Parsear y extraer
-Paso 4: Comparar contra marcas vigiladas
-Paso 5: Calcular scoring
-Paso 6: Guardar resultados
-Paso 7: Generar dashboard
+Paso 1-2: Detectar y descargar boletines nuevos
+Paso 3-6: Parsear, comparar, calcular scoring
+Paso 7:   Analisis IA legal (post-scoring, sobre coincidencias guardadas)
+Paso 8:   Generar dashboard
 """
 
+import json
 import logging
 from pathlib import Path
 from datetime import datetime
@@ -24,7 +22,7 @@ from .comparador_fonetico import ComparadorFonetico
 from .comparador_visual import ComparadorVisual, ResultadoVisual
 from .comparador_color import ComparadorColor, ResultadoColor
 from .scoring import MotorScoring
-from .analisis_ia import AnalizadorIA
+from .analisis_ia import AnalizadorIALegal
 from .dashboard import GeneradorDashboard
 from .utils import hash_archivo
 
@@ -49,7 +47,7 @@ class Pipeline:
         self.comp_visual = ComparadorVisual(self.settings)
         self.comp_color = ComparadorColor(self.settings)
         self.scoring = MotorScoring(self.settings)
-        self.ia = AnalizadorIA(self.settings)
+        self.ia = AnalizadorIALegal(self.settings)
         self.dashboard = GeneradorDashboard(self.settings)
 
         self.dir_pdfs = obtener_ruta(self.settings, "pdfs")
@@ -66,6 +64,7 @@ class Pipeline:
             "boletines_descargados": 0,
             "entradas_procesadas": 0,
             "coincidencias_encontradas": 0,
+            "analisis_ia_generados": 0,
             "errores": [],
             "dashboard": None,
         }
@@ -81,7 +80,11 @@ class Pipeline:
             resultados["entradas_procesadas"] = n_entradas
             resultados["coincidencias_encontradas"] = n_coincidencias
 
-            # Paso 7: Dashboard
+            # Paso 7: Analisis IA legal (sobre todas las coincidencias sin analisis)
+            n_ia = self._paso_analisis_ia()
+            resultados["analisis_ia_generados"] = n_ia
+
+            # Paso 8: Dashboard
             ruta_dashboard = self._paso_dashboard()
             resultados["dashboard"] = str(ruta_dashboard)
 
@@ -90,6 +93,7 @@ class Pipeline:
                 boletines=resultados["boletines_descargados"],
                 coincidencias=n_coincidencias,
                 estado="ok",
+                analisis_ia=n_ia,
             )
 
         except Exception as e:
@@ -251,11 +255,6 @@ class Pipeline:
 
         # Solo guardar si supera umbral
         if self.scoring.supera_umbral(resultado):
-            # Analisis IA opcional
-            analisis = None
-            if self.ia.habilitado:
-                analisis = self.ia.analizar(resultado, marca)
-
             self.db.registrar_coincidencia(
                 id_boletin=boletin["id"],
                 marca_vigilada=nombre_marca,
@@ -273,37 +272,106 @@ class Pipeline:
                     "recomendacion": resultado.recomendacion,
                     "factores_a_favor": resultado.factores_a_favor,
                     "factores_en_contra": resultado.factores_en_contra,
-                    "analisis_ia": analisis.__dict__ if analisis else None,
+                    "solicitante": entrada.solicitante,
+                    "acta_numero": entrada.acta_numero,
                 },
             )
             return 1
 
         return 0
 
+    def _paso_analisis_ia(self) -> int:
+        """Paso 7: Analisis IA legal para coincidencias sin analisis."""
+        logger.info("--- PASO 7: Analisis IA legal ---")
+
+        if not self.ia.habilitado:
+            logger.info("Analisis IA deshabilitado en configuracion")
+            return 0
+
+        # Obtener coincidencias que no tienen analisis IA
+        pendientes = self.db.obtener_coincidencias_sin_analisis_ia()
+        if not pendientes:
+            logger.info("Todas las coincidencias ya tienen analisis IA")
+            return 0
+
+        logger.info(f"Analizando {len(pendientes)} coincidencias con IA...")
+        resultados = self.ia.analizar_lote(pendientes, self.marcas, self.db)
+
+        n_ok = sum(1 for r in resultados if r.es_valido())
+        n_err = sum(1 for r in resultados if r.error)
+        logger.info(f"Analisis IA completado: {n_ok} exitosos, {n_err} con error")
+        return n_ok
+
     def _paso_dashboard(self) -> Path:
         """Genera el dashboard HTML."""
-        logger.info("--- PASO 7: Generar dashboard ---")
+        logger.info("--- PASO 8: Generar dashboard ---")
 
         coincidencias = self.db.obtener_todas_coincidencias()
         estadisticas = self.db.obtener_estadisticas()
         boletines = self.db.obtener_todos_boletines()
 
-        # Enriquecer coincidencias con metadata
+        # Enriquecer coincidencias con metadata y analisis IA
         for c in coincidencias:
+            # Metadata del scoring
             try:
-                import json
                 meta = json.loads(c.get("metadata", "{}"))
                 c["recomendacion"] = meta.get("recomendacion", "")
                 c["factores_a_favor"] = meta.get("factores_a_favor", [])
                 c["factores_en_contra"] = meta.get("factores_en_contra", [])
-                c["analisis_ia"] = meta.get("analisis_ia")
+                c["solicitante"] = meta.get("solicitante", "")
+                c["acta_numero"] = meta.get("acta_numero", "")
             except Exception:
                 c["recomendacion"] = ""
                 c["factores_a_favor"] = []
                 c["factores_en_contra"] = []
 
+            # Analisis IA
+            analisis = self.db.obtener_analisis_ia(c["id"])
+            c["analisis_ia"] = analisis
+
         ruta = self.dashboard.generar(coincidencias, estadisticas, boletines)
         return ruta
+
+    def ejecutar_analisis_ia(self, id_coincidencia: int = None) -> dict:
+        """
+        Ejecuta o regenera analisis IA.
+        Si id_coincidencia es None, procesa todas las pendientes.
+        Si se pasa un id, regenera ese caso especifico.
+        """
+        if not self.ia.habilitado:
+            return {"error": "Analisis IA no habilitado en configuracion"}
+
+        if id_coincidencia:
+            return self._regenerar_ia_individual(id_coincidencia)
+        else:
+            n = self._paso_analisis_ia()
+            self._paso_dashboard()
+            return {"analisis_generados": n}
+
+    def _regenerar_ia_individual(self, id_coincidencia: int) -> dict:
+        """Regenera el analisis IA para un caso especifico."""
+        coincidencia = self.db.obtener_coincidencia(id_coincidencia)
+        if not coincidencia:
+            return {"error": f"Coincidencia {id_coincidencia} no encontrada"}
+
+        marca_nombre = coincidencia.get("marca_vigilada", "")
+        marca_cfg = next(
+            (m for m in self.marcas if m["nombre"] == marca_nombre), {}
+        )
+
+        resultado = self.ia.regenerar_analisis(
+            id_coincidencia, coincidencia, marca_cfg, self.db
+        )
+
+        # Regenerar dashboard
+        self._paso_dashboard()
+
+        return {
+            "id_coincidencia": id_coincidencia,
+            "riesgo": resultado.riesgo_preliminar,
+            "recomendacion": resultado.recomendacion_operativa,
+            "error": resultado.error,
+        }
 
     def procesar_pdf_manual(self, ruta_pdf: Path) -> dict:
         """Procesa un PDF especifico manualmente (sin descarga del portal)."""
@@ -325,12 +393,16 @@ class Pipeline:
         # Procesar
         n_entradas, n_coincidencias = self._paso_procesamiento()
 
+        # Analisis IA
+        n_ia = self._paso_analisis_ia()
+
         # Dashboard
         self._paso_dashboard()
 
         return {
             "entradas": n_entradas,
             "coincidencias": n_coincidencias,
+            "analisis_ia": n_ia,
         }
 
     def regenerar_dashboard(self) -> Path:

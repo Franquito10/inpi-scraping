@@ -82,13 +82,17 @@ dashboard:
   agrupar_por: "marca"        # marca | palabra_clave | score
 
 # --- IA Legal (opcional) ---
+# Para activar: poner habilitado en true y configurar API key como
+# variable de entorno del sistema (ej: set OPENAI_API_KEY=sk-...)
 ia_legal:
   habilitado: false
-  proveedor: "openai"         # openai | anthropic
-  modelo: "gpt-4o-mini"
-  api_key_env: "OPENAI_API_KEY"  # nombre de variable de entorno
-  max_tokens: 1000
+  proveedor: "openai"         # openai | anthropic | local
+  modelo: "gpt-4o-mini"       # modelo a usar (gpt-4o, claude-sonnet-4-6, etc)
+  api_key_env: "OPENAI_API_KEY"  # nombre de variable de entorno con la API key
+  base_url: ""                # URL base (solo para proveedor "local", ej: http://localhost:11434/v1)
+  max_tokens: 1500
   temperatura: 0.2
+  max_feedback_items: 10      # cuantos items de historial humano enviar al LLM
 
 # --- Logging ---
 logging:
