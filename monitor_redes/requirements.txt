@@ -1,0 +1,8 @@
+# Monitor de redes - dependencias
+requests>=2.31.0
+pyyaml>=6.0.0
+jinja2>=3.1.0
+openpyxl>=3.1.0
+tzdata>=2024.1        # zonas horarias en Windows
+# Opcional: resumenes con IA
+anthropic>=0.40.0

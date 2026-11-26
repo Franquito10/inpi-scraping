@@ -1,0 +1,32 @@
+# Monitor de Redes - configuracion
+# Los secretos (tokens) NO van aca: van en variables de entorno o en monitor_redes/.env
+
+zona_horaria: "America/Argentina/Tucuman"
+
+rutas:
+  personas: "monitor_redes/personas.yaml"
+  db: "datos/redes/redes.db"
+  dashboard: "datos/redes/dashboard.html"
+
+scraping:
+  backend: "apify"            # apify | demo
+  dias_atras: 2               # cada corrida trae los ultimos N dias (la 1ra vez usar --dias 30)
+  max_por_cuenta: 30          # tope de publicaciones por cuenta y corrida
+  plataformas: ["facebook", "x", "instagram", "tiktok"]
+  # Actores de Apify (https://apify.com/store). Se pueden cambiar por otros equivalentes.
+  actores:
+    facebook: "apify/facebook-posts-scraper"
+    x: "apidojo/tweet-scraper"
+    instagram: "apify/instagram-scraper"
+    tiktok: "clockworks/tiktok-scraper"
+  timeout_minutos: 15
+
+analisis:
+  ia:
+    habilitada: true          # usa Claude si existe ANTHROPIC_API_KEY; si no, resumen por reglas
+    modelo: "claude-sonnet-5-5"
+
+bot:
+  intervalo_horas: 3          # cada cuanto scrapea y avisa novedades
+  resumen_diario_hora: "21:00"
+  max_publicaciones_por_aviso: 15

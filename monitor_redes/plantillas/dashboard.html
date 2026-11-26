@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ titulo }}</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f9; --surface: #ffffff; --ink: #191919; --ink-2: #666666;
+  --grid: #e7e7e7; --axis: #c2c2c2; --ring: rgba(11,11,11,0.10); --wash: rgba(11,11,11,0.05);
+  --accent: #257de0; --critical: #dc3c3d; --good: #006c10;
+  --s-facebook: #257de0; --s-x: #f47230; --s-instagram: #00b894; --s-tiktok: #f2a600;
+  --q1: #cce3fd; --q2: #9dc8f7; --q3: #6aabf1; --q4: #338ced; --q5: #2370cd; --q6: #0f4a96;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0b0b0b; --surface: #191919; --ink: #efefef; --ink-2: #9c9c9c;
+    --grid: #303030; --axis: #474747; --ring: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.06);
+    --accent: #338ced; --critical: #eb6263; --good: #53c556;
+    --s-facebook: #338ced; --s-x: #e76624; --s-instagram: #00a888; --s-tiktok: #d28e05;
+    --q1: #0e3d7e; --q2: #1757ac; --q3: #2370cd; --q4: #338ced; --q5: #6aabf1; --q6: #b6d5f8;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0b0b0b; --surface: #191919; --ink: #efefef; --ink-2: #9c9c9c;
+  --grid: #303030; --axis: #474747; --ring: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.06);
+  --accent: #338ced; --critical: #eb6263; --good: #53c556;
+  --s-facebook: #338ced; --s-x: #e76624; --s-instagram: #00a888; --s-tiktok: #d28e05;
+  --q1: #0e3d7e; --q2: #1757ac; --q3: #2370cd; --q4: #338ced; --q5: #6aabf1; --q6: #b6d5f8;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); }
+header { padding: 20px 24px 8px; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; }
+header h1 { margin: 0; font-size: 22px; }
+header .meta { color: var(--ink-2); font-size: 13px; }
+main { padding: 0 24px 40px; max-width: 1400px; margin: 0 auto; }
+.filtros { position: sticky; top: 0; z-index: 5; background: var(--page); padding: 10px 0;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-bottom: 1px solid var(--grid); }
+.filtros select, .filtros input[type=search] { font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--ring); border-radius: 8px; padding: 6px 10px; min-height: 34px; }
+.filtros input[type=search] { flex: 1 1 200px; }
+.seg { display: inline-flex; border: 1px solid var(--ring); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button, .chip-red { font: inherit; color: var(--ink); background: none; border: 0; padding: 6px 12px; cursor: pointer; min-height: 34px; }
+.seg button[aria-pressed=true] { background: var(--wash); font-weight: 600; }
+.chip-red { border: 1px solid var(--ring); border-radius: 999px; background: var(--surface); display: inline-flex; gap: 6px; align-items: center; }
+.chip-red[aria-pressed=false] { opacity: .45; }
+.dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+button.limpiar { font: inherit; background: none; border: 0; color: var(--accent); cursor: pointer; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0; }
+.kpi, .card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; }
+.kpi { padding: 14px 16px; }
+.kpi .v { font-size: 28px; font-weight: 650; }
+.kpi .l { color: var(--ink-2); font-size: 13px; }
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+.card { padding: 16px; min-width: 0; }
+.card h2 { margin: 0 0 2px; font-size: 15px; }
+.card .sub { color: var(--ink-2); font-size: 12px; margin: 0 0 12px; }
+.c6 { grid-column: span 6; } .c4 { grid-column: span 4; } .c8 { grid-column: span 8; } .c12 { grid-column: span 12; }
+@media (max-width: 980px) { .c6, .c4, .c8 { grid-column: span 12; } }
+@media (max-width: 600px) { header, main { padding-left: 16px; padding-right: 16px; } }
+.leyenda { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-2); font-size: 12px; margin-bottom: 10px; }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.hbar { display: grid; grid-template-columns: minmax(90px, 32%) 1fr 44px; gap: 8px; align-items: center;
+  padding: 3px 4px; border-radius: 6px; cursor: pointer; }
+.hbar:hover, .hbar:focus-visible { background: var(--wash); outline: none; }
+.hbar .n { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.hbar .n small { color: var(--ink-2); }
+.hbar .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: 12px; }
+.track { display: flex; gap: 2px; height: 14px; }
+.track i { display: block; height: 100%; border-radius: 0; min-width: 2px; }
+.track i:first-child { border-radius: 4px 0 0 4px; } .track i:last-child { border-radius: 0 4px 4px 0; }
+.track i:only-child { border-radius: 4px; }
+.cols { display: flex; align-items: flex-end; gap: 2px; height: 160px; border-bottom: 1px solid var(--axis); position: relative; }
+.cols .col { flex: 1; display: flex; flex-direction: column-reverse; gap: 2px; height: 100%; justify-content: flex-start; cursor: default; }
+.cols .col:hover { background: var(--wash); }
+.cols .col i { display: block; width: 100%; }
+.cols .col i:last-child { border-radius: 4px 4px 0 0; }
+.ejex { display: flex; justify-content: space-between; color: var(--ink-2); font-size: 11px; margin-top: 4px; }
+.gridline { position: absolute; left: 0; right: 0; border-top: 1px solid var(--grid); pointer-events: none; }
+.gridline span { position: absolute; right: 0; top: -14px; font-size: 11px; color: var(--ink-2); }
+.heat { display: grid; grid-template-columns: 30px repeat(24, minmax(0, 1fr)); gap: 2px; font-size: 11px; color: var(--ink-2); }
+.heat .cell { aspect-ratio: 1; border-radius: 3px; background: var(--wash); min-width: 0; }
+.heat .hh { overflow: visible; white-space: nowrap; }
+.tabla { overflow-x: auto; }
+.heat .lbl { display: flex; align-items: center; }
+.heat .hh { text-align: center; }
+.escala { display: flex; align-items: center; gap: 4px; margin-top: 8px; color: var(--ink-2); font-size: 11px; }
+.escala i { width: 18px; height: 10px; border-radius: 2px; display: inline-block; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { border: 1px solid var(--ring); border-radius: 999px; padding: 2px 10px; font-size: 12px; background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; font-size: 12px; }
+.tag b { font-weight: 600; margin-left: 4px; color: var(--ink-2); }
+.personas { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.persona h3 { margin: 0; font-size: 15px; }
+.persona .cargo { color: var(--ink-2); font-size: 12px; }
+.persona p { margin: 8px 0; white-space: pre-line; }
+.persona .cuentas { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+.persona .cuentas a { display: inline-flex; gap: 5px; align-items: center; text-decoration: none; color: var(--ink);
+  border: 1px solid var(--ring); border-radius: 999px; padding: 2px 8px; }
+.persona .cuentas a.err { border-color: var(--critical); }
+.persona .stats { color: var(--ink-2); font-size: 12px; }
+.badge { font-size: 11px; color: var(--ink-2); border: 1px solid var(--ring); border-radius: 4px; padding: 0 5px; margin-left: 6px; }
+.feed { display: flex; flex-direction: column; gap: 10px; }
+.post { border: 1px solid var(--ring); border-radius: 10px; padding: 12px 14px; background: var(--surface); }
+.post .cab { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 13px; }
+.post .cab .quien { font-weight: 600; }
+.post .cab .cuando { color: var(--ink-2); }
+.post .txt { margin: 6px 0; white-space: pre-line; overflow-wrap: anywhere; }
+.post .pie { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-2); font-size: 12px; align-items: center; }
+.post .pie .t { border-radius: 4px; padding: 0 6px; background: var(--wash); color: var(--ink); }
+mark { background: color-mix(in srgb, var(--s-tiktok) 35%, transparent); color: inherit; }
+.mas { margin: 12px auto 0; display: block; font: inherit; padding: 8px 18px; border-radius: 8px;
+  border: 1px solid var(--ring); background: var(--surface); color: var(--ink); cursor: pointer; }
+.vacio { color: var(--ink-2); padding: 12px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--grid); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+details summary { cursor: pointer; color: var(--accent); font-size: 12px; margin-top: 10px; }
+#tip { position: fixed; pointer-events: none; z-index: 20; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--ring); border-radius: 8px; padding: 8px 10px; font-size: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.15); max-width: 280px; display: none; }
+#tip .r { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.tema-btn { font: inherit; background: none; border: 0; color: var(--ink-2); cursor: pointer; padding: 0; }
+.tema-btn:hover { color: var(--accent); }
+.aviso { background: var(--surface); border: 1px solid var(--ring); border-left: 3px solid var(--critical); border-radius: 8px; padding: 8px 12px; margin-top: 12px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>{{ titulo }}</h1>
+  <span class="meta" id="meta"></span>
+</header>
+<main>
+  <div class="filtros" role="search">
+    <div class="seg" id="f-periodo" aria-label="Período">
+      <button data-d="1">Hoy</button><button data-d="7" aria-pressed="true">7 días</button><button data-d="30">30 días</button><button data-d="90">90 días</button><button data-d="0">Todo</button>
+    </div>
+    <select id="f-persona" aria-label="Persona"><option value="">Todas las personas</option></select>
+    <select id="f-cargo" aria-label="Cargo"><option value="">Todos los cargos</option></select>
+    <select id="f-tema" aria-label="Tema"><option value="">Todos los temas</option></select>
+    <select id="f-act" aria-label="Actividad"><option value="">Todas las actividades</option></select>
+    <span id="f-redes"></span>
+    <input type="search" id="f-texto" placeholder="Buscar en publicaciones…" aria-label="Buscar">
+    <button class="limpiar" id="limpiar">Limpiar</button>
+  </div>
+  <div id="avisos"></div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <div class="grid">
+    <section class="card c6">
+      <h2>Quién publica más</h2>
+      <p class="sub">Publicaciones por persona y red. Clic en una persona para filtrar.</p>
+      <div class="leyenda" id="ley-personas"></div>
+      <div id="g-personas"></div>
+      <details><summary>Ver como tabla</summary><div id="t-personas" class="tabla"></div></details>
+    </section>
+    <section class="card c6">
+      <h2>Publicaciones por día</h2>
+      <p class="sub" id="sub-dias"></p>
+      <div class="leyenda" id="ley-dias"></div>
+      <div id="g-dias"></div>
+    </section>
+    <section class="card c4">
+      <h2>De qué hablan</h2>
+      <p class="sub">Temas detectados en los textos. Clic para filtrar.</p>
+      <div id="g-temas"></div>
+    </section>
+    <section class="card c4">
+      <h2>Qué hacen</h2>
+      <p class="sub">Actividades que se desprenden de las publicaciones. Clic para filtrar.</p>
+      <div id="g-acts"></div>
+    </section>
+    <section class="card c4">
+      <h2>Cuándo publican</h2>
+      <p class="sub">Publicaciones por día y hora (hora de Tucumán).</p>
+      <div id="g-heat"></div>
+    </section>
+    <section class="card c6">
+      <h2>Dónde</h2>
+      <p class="sub">Lugares mencionados.</p>
+      <div class="tags" id="g-lugares"></div>
+    </section>
+    <section class="card c6">
+      <h2>Hashtags</h2>
+      <p class="sub">Los más usados. Clic para buscar.</p>
+      <div class="tags" id="g-hashtags"></div>
+    </section>
+    <section class="card c12">
+      <h2>Resumen por persona</h2>
+      <p class="sub" id="sub-personas">Qué publicó y qué hizo cada uno en los últimos 7 días.</p>
+      <div class="personas" id="g-cards"></div>
+    </section>
+    <section class="card c12">
+      <h2>Publicaciones</h2>
+      <p class="sub" id="sub-feed"></p>
+      <div class="feed" id="g-feed"></div>
+      <button class="mas" id="mas" hidden>Ver más</button>
+    </section>
+  </div>
+</main>
+<div id="tip" role="tooltip"></div>
+
+<script id="datos" type="application/json">{{ datos|tojson }}</script>
+<script>
+(() => {
+const D = JSON.parse(document.getElementById('datos').textContent);
+const REDES = ['facebook', 'x', 'instagram', 'tiktok'];
+const NR = D.redes;
+const ZONA = D.zona;
+const P = Object.fromEntries(D.personas.map(p => [p.id, p]));
+const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const fmtN = n => new Intl.NumberFormat('es-AR', {notation: n >= 10000 ? 'compact' : 'standard', maximumFractionDigits: 1}).format(n);
+const fmtFecha = new Intl.DateTimeFormat('es-AR', {timeZone: ZONA, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+const fmtDia = new Intl.DateTimeFormat('es-AR', {timeZone: ZONA, day: '2-digit', month: '2-digit'});
+const partes = new Intl.DateTimeFormat('en-US', {timeZone: ZONA, weekday: 'short', hour: 'numeric', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit'});
+const WD = {Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6};
+function local(iso) {
+  const o = {}; partes.formatToParts(new Date(iso)).forEach(x => o[x.type] = x.value);
+  return {dia: `${o.year}-${o.month}-${o.day}`, wd: WD[o.weekday], h: +o.hour % 24};
+}
+D.publicaciones.forEach(p => { p.t = new Date(p.fecha).getTime(); p.loc = local(p.fecha); p.inter = (p.likes||0)+(p.comentarios||0)+(p.compartidos||0); p.norm = norm(p.texto + ' ' + p.hashtags.join(' ')); });
+function norm(s) { return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function el(tag, attrs = {}, ...hijos) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'style') e.style.cssText = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (k === 'text') e.textContent = v; else if (v !== null && v !== undefined && v !== false) e.setAttribute(k, v);
+  }
+  for (const h of hijos.flat()) if (h !== null && h !== undefined) e.append(h instanceof Node ? h : document.createTextNode(h));
+  return e;
+}
+const dot = red => el('i', {class: 'dot', style: `background:var(--s-${red})`});
+
+// --------------------------------------------------------------- estado / filtros
+const F = {dias: 7, persona: '', cargo: '', tema: '', act: '', redes: new Set(REDES), texto: ''};
+try { const g = JSON.parse(localStorage.getItem('monitor-redes-filtros') || '{}'); if (g.dias !== undefined) F.dias = g.dias; } catch (e) {}
+
+const selP = document.getElementById('f-persona');
+[...D.personas].sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(p => selP.append(el('option', {value: p.id, text: p.nombre})));
+const selC = document.getElementById('f-cargo');
+[...new Set(D.personas.map(p => p.cargo).filter(Boolean))].sort().forEach(c => selC.append(el('option', {value: c, text: c})));
+const selT = document.getElementById('f-tema');
+[...new Set(D.publicaciones.flatMap(p => p.temas))].sort().forEach(t => selT.append(el('option', {value: t, text: t})));
+const cajaRedes = document.getElementById('f-redes');
+REDES.forEach(r => cajaRedes.append(el('button', {class: 'chip-red', 'aria-pressed': 'true', 'data-r': r, onclick: e => {
+  const b = e.currentTarget; if (F.redes.has(r) && F.redes.size > 1) F.redes.delete(r); else F.redes.add(r);
+  b.setAttribute('aria-pressed', F.redes.has(r)); render(); }}, dot(r), NR[r]), ' '));
+document.querySelectorAll('#f-periodo button').forEach(b => {
+  b.setAttribute('aria-pressed', +b.dataset.d === F.dias);
+  b.onclick = () => { F.dias = +b.dataset.d; document.querySelectorAll('#f-periodo button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    try { localStorage.setItem('monitor-redes-filtros', JSON.stringify({dias: F.dias})); } catch (e) {} render(); };
+});
+const selA = document.getElementById('f-act');
+[...new Set(D.publicaciones.flatMap(p => p.actividades))].sort().forEach(t => selA.append(el('option', {value: t, text: t})));
+selA.onchange = () => { F.act = selA.value; render(); };
+selP.onchange = () => { F.persona = selP.value; render(); };
+selC.onchange = () => { F.cargo = selC.value; render(); };
+selT.onchange = () => { F.tema = selT.value; render(); };
+let tBusq; document.getElementById('f-texto').oninput = e => { clearTimeout(tBusq); tBusq = setTimeout(() => { F.texto = e.target.value; render(); }, 200); };
+document.getElementById('limpiar').onclick = () => {
+  Object.assign(F, {persona: '', cargo: '', tema: '', act: '', texto: '', redes: new Set(REDES)});
+  selP.value = selC.value = selT.value = selA.value = ''; document.getElementById('f-texto').value = '';
+  cajaRedes.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', 'true')); render();
+};
+function setPersona(id) { F.persona = String(id); selP.value = F.persona; render(); window.scrollTo({top: document.getElementById('g-cards').offsetTop - 80, behavior: 'smooth'}); }
+function setTema(t) { F.tema = t; selT.value = t; render(); }
+function setAct(a) { F.act = a; selA.value = a; render(); }
+function setTexto(t) { F.texto = t; document.getElementById('f-texto').value = t; render(); }
+
+function inicioPeriodo() {
+  if (!F.dias) return 0;
+  const hoy = local(new Date().toISOString()).dia;
+  const base = new Date(hoy + 'T12:00:00'); base.setDate(base.getDate() - (F.dias - 1));
+  return base.toISOString().slice(0, 10);
+}
+function filtrar() {
+  const ini = inicioPeriodo(), q = norm(F.texto.trim());
+  return D.publicaciones.filter(p => (!ini || p.loc.dia >= ini) && F.redes.has(p.red)
+    && (!F.persona || String(p.persona_id) === F.persona)
+    && (!F.cargo || P[p.persona_id].cargo === F.cargo)
+    && (!F.tema || p.temas.includes(F.tema))
+    && (!F.act || p.actividades.includes(F.act))
+    && (!q || p.norm.includes(q)));
+}
+function personasVisibles() {
+  return D.personas.filter(p => (!F.persona || String(p.id) === F.persona) && (!F.cargo || p.cargo === F.cargo));
+}
+
+// --------------------------------------------------------------- tooltip
+const tip = document.getElementById('tip');
+function mostrarTip(ev, nodos) { tip.replaceChildren(...nodos); tip.style.display = 'block'; moverTip(ev); }
+function moverTip(ev) {
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - 14;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function ocultarTip() { tip.style.display = 'none'; }
+function conTip(nodo, fn) {
+  nodo.addEventListener('mouseenter', e => mostrarTip(e, fn()));
+  nodo.addEventListener('mousemove', moverTip);
+  nodo.addEventListener('mouseleave', ocultarTip);
+  nodo.addEventListener('focus', e => { const r = nodo.getBoundingClientRect(); mostrarTip({clientX: r.right, clientY: r.top}, fn()); });
+  nodo.addEventListener('blur', ocultarTip);
+  return nodo;
+}
+const filaTip = (izq, der) => el('div', {class: 'r'}, el('span', {}, izq), el('b', {}, der));
+
+// --------------------------------------------------------------- componentes
+function leyendaRedes(id) {
+  document.getElementById(id).replaceChildren(...REDES.filter(r => F.redes.has(r)).map(r => el('span', {}, dot(r), NR[r])));
+}
+function barrasApiladas(cont, filas, onclick) {
+  // filas: [{label, sub, partes:{red:n}, total, key}]
+  const max = Math.max(1, ...filas.map(f => f.total));
+  cont.replaceChildren(...filas.map(f => conTip(el('div', {class: 'hbar', tabindex: 0, role: 'button', onclick: () => onclick && onclick(f.key),
+      onkeydown: e => { if (e.key === 'Enter') onclick && onclick(f.key); }},
+      el('span', {class: 'n', title: f.label}, f.label, f.sub ? el('small', {}, ' · ' + f.sub) : null),
+      el('span', {class: 'track', style: `width:${(f.total / max * 100).toFixed(1)}%`},
+        ...REDES.filter(r => f.partes[r]).map(r => el('i', {style: `flex:${f.partes[r]};background:var(--s-${r})`}))),
+      el('span', {class: 'v'}, fmtN(f.total))),
+    () => [el('div', {style: 'font-weight:600;margin-bottom:4px'}, f.label),
+      ...REDES.filter(r => f.partes[r]).map(r => filaTip(el('span', {style: 'display:inline-flex;gap:6px;align-items:center'}, dot(r), NR[r]), f.partes[r])),
+      filaTip('Total', f.total), f.extra ? filaTip('Interacciones', fmtN(f.extra)) : null].filter(Boolean))));
+  if (!filas.length) cont.replaceChildren(el('div', {class: 'vacio'}, 'Sin datos para estos filtros.'));
+}
+function barrasSimples(cont, conteo, onclick, activo) {
+  const filas = Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 12);
+  const max = Math.max(1, ...filas.map(f => f[1]));
+  if (!filas.length) { cont.replaceChildren(el('div', {class: 'vacio'}, 'Sin datos para estos filtros.')); return; }
+  cont.replaceChildren(...filas.map(([k, n]) => conTip(el('div', {class: 'hbar', tabindex: 0, role: 'button', onclick: () => onclick && onclick(k),
+      style: activo === k ? 'background:var(--wash)' : ''},
+    el('span', {class: 'n', title: k}, k),
+    el('span', {class: 'track', style: `width:${(n / max * 100).toFixed(1)}%`}, el('i', {style: 'flex:1;background:var(--s-facebook)'})),
+    el('span', {class: 'v'}, fmtN(n))), () => [el('div', {style: 'font-weight:600'}, k), filaTip('Publicaciones', n)])));
+}
+
+// --------------------------------------------------------------- render
+function render() {
+  const pubs = filtrar();
+  const vis = personasVisibles();
+
+  // KPIs
+  const activos = new Set(pubs.map(p => p.persona_id));
+  const dias = F.dias || Math.max(1, Math.ceil((Date.now() - Math.min(Date.now(), ...pubs.map(p => p.t))) / 864e5));
+  const inter = pubs.reduce((a, p) => a + p.inter, 0);
+  const vistas = pubs.reduce((a, p) => a + (p.vistas || 0), 0);
+  document.getElementById('kpis').replaceChildren(
+    ...[[fmtN(pubs.length), 'Publicaciones'], [`${activos.size} / ${vis.length}`, 'Personas que publicaron'],
+      [fmtN(pubs.length / dias), 'Publicaciones por día'], [fmtN(inter), 'Interacciones (likes + coment. + compart.)'],
+      [vistas ? fmtN(vistas) : '—', 'Reproducciones de videos']]
+    .map(([v, l]) => el('div', {class: 'kpi'}, el('div', {class: 'v'}, v), el('div', {class: 'l'}, l))));
+
+  // por persona
+  leyendaRedes('ley-personas'); leyendaRedes('ley-dias');
+  const porP = {};
+  vis.forEach(p => porP[p.id] = {label: p.nombre, sub: p.cargo, partes: {}, total: 0, key: p.id, extra: 0});
+  pubs.forEach(p => { const f = porP[p.persona_id]; if (!f) return; f.partes[p.red] = (f.partes[p.red] || 0) + 1; f.total++; f.extra += p.inter; });
+  const filasP = Object.values(porP).sort((a, b) => b.total - a.total || a.label.localeCompare(b.label));
+  barrasApiladas(document.getElementById('g-personas'), filasP.filter(f => f.total), setPersona);
+  const callados = filasP.filter(f => !f.total).map(f => f.label);
+  if (callados.length) document.getElementById('g-personas').append(el('p', {class: 'sub', style: 'margin:10px 0 0'}, 'Sin publicaciones: ' + callados.join(', ')));
+  document.getElementById('t-personas').replaceChildren(el('table', {},
+    el('thead', {}, el('tr', {}, el('th', {}, 'Persona'), ...REDES.map(r => el('th', {class: 'num'}, NR[r])), el('th', {class: 'num'}, 'Total'), el('th', {class: 'num'}, 'Interacciones'))),
+    el('tbody', {}, ...filasP.map(f => el('tr', {}, el('td', {}, f.label), ...REDES.map(r => el('td', {class: 'num'}, f.partes[r] || 0)), el('td', {class: 'num'}, f.total), el('td', {class: 'num'}, fmtN(f.extra)))))));
+
+  // por dia
+  renderDias(pubs);
+
+  // temas / actividades
+  const cuenta = campo => { const c = {}; pubs.forEach(p => p[campo].forEach(t => c[t] = (c[t] || 0) + 1)); return c; };
+  barrasSimples(document.getElementById('g-temas'), cuenta('temas'), t => setTema(F.tema === t ? '' : t), F.tema);
+  barrasSimples(document.getElementById('g-acts'), cuenta('actividades'), a => setAct(F.act === a ? '' : a), F.act);
+
+  renderHeat(pubs);
+
+  // lugares y hashtags
+  const chips = (id, conteo, onclick) => {
+    const top = Object.entries(conteo).sort((a, b) => b[1] - a[1]).slice(0, 30);
+    document.getElementById(id).replaceChildren(...(top.length ? top.map(([k, n]) => el('button', {class: 'tag', onclick: () => onclick(k)}, k, el('b', {}, n)))
+      : [el('div', {class: 'vacio'}, 'Nada detectado en este período.')]));
+  };
+  chips('g-lugares', cuenta('lugares'), setTexto);
+  const hs = {}; pubs.forEach(p => p.hashtags.forEach(h => { const k = '#' + h.toLowerCase(); hs[k] = (hs[k] || 0) + 1; }));
+  chips('g-hashtags', hs, k => setTexto(k.slice(1)));
+
+  renderCards(pubs, vis);
+  renderFeed(pubs);
+}
+
+function renderDias(pubs) {
+  const cont = document.getElementById('g-dias');
+  if (!pubs.length) { cont.replaceChildren(el('div', {class: 'vacio'}, 'Sin datos para estos filtros.')); return; }
+  const ini = inicioPeriodo() || pubs.reduce((m, p) => p.loc.dia < m ? p.loc.dia : m, '9999');
+  const fin = local(new Date().toISOString()).dia;
+  const dias = []; for (let d = new Date(ini + 'T12:00:00'); d.toISOString().slice(0, 10) <= fin; d.setDate(d.getDate() + 1)) dias.push(d.toISOString().slice(0, 10));
+  const m = Object.fromEntries(dias.map(d => [d, {}]));
+  pubs.forEach(p => { if (m[p.loc.dia]) m[p.loc.dia][p.red] = (m[p.loc.dia][p.red] || 0) + 1; });
+  const tot = d => REDES.reduce((a, r) => a + (m[d][r] || 0), 0);
+  const max = Math.max(1, ...dias.map(tot));
+  const paso = max <= 5 ? 1 : Math.ceil(max / 4 / 5) * 5;
+  const lineas = []; for (let v = paso; v <= max; v += paso) lineas.push(el('div', {class: 'gridline', style: `bottom:${v / max * 100}%`}, el('span', {}, v)));
+  document.getElementById('sub-dias').textContent = `Hora de Tucumán · ${dias.length} días`;
+  const fmt = d => { const [y, mo, da] = d.split('-'); return `${da}/${mo}`; };
+  cont.replaceChildren(
+    el('div', {class: 'cols'}, ...lineas, ...dias.map(d => conTip(el('div', {class: 'col'},
+      ...REDES.filter(r => m[d][r]).map(r => el('i', {style: `height:calc(${m[d][r] / max * 100}% - 2px);background:var(--s-${r})`}))),
+      () => [el('div', {style: 'font-weight:600;margin-bottom:4px'}, fmt(d)), ...REDES.filter(r => m[d][r]).map(r => filaTip(el('span', {style: 'display:inline-flex;gap:6px;align-items:center'}, dot(r), NR[r]), m[d][r])), filaTip('Total', tot(d))]))),
+    el('div', {class: 'ejex'}, el('span', {}, fmt(dias[0])), dias.length > 2 ? el('span', {}, fmt(dias[Math.floor(dias.length / 2)])) : null, el('span', {}, fmt(dias[dias.length - 1]))));
+}
+
+function renderHeat(pubs) {
+  const m = Array.from({length: 7}, () => Array(24).fill(0));
+  pubs.forEach(p => m[p.loc.wd][p.loc.h]++);
+  const max = Math.max(0, ...m.flat());
+  const paso = ['--q1', '--q2', '--q3', '--q4', '--q5', '--q6'];
+  const color = n => n === 0 ? 'var(--wash)' : `var(${paso[Math.min(5, Math.floor((n / max) * 5.999))]})`;
+  const cont = document.getElementById('g-heat');
+  const g = el('div', {class: 'heat'}, el('span', {}));
+  for (let h = 0; h < 24; h++) g.append(el('span', {class: 'hh'}, h % 6 === 0 ? h : ''));
+  m.forEach((fila, d) => {
+    g.append(el('span', {class: 'lbl'}, DIAS[d]));
+    fila.forEach((n, h) => g.append(conTip(el('span', {class: 'cell', style: `background:${color(n)}`}),
+      () => [el('div', {style: 'font-weight:600'}, `${DIAS[d]} ${h}:00–${h}:59`), filaTip('Publicaciones', n)])));
+  });
+  cont.replaceChildren(g, el('div', {class: 'escala'}, 'menos', ...paso.map(v => el('i', {style: `background:var(${v})`})), 'más',
+    max ? el('span', {style: 'margin-left:auto'}, `máx. ${max}`) : null));
+}
+
+function renderCards(pubs, vis) {
+  const porP = {}; pubs.forEach(p => (porP[p.persona_id] = porP[p.persona_id] || []).push(p));
+  const orden = [...vis].sort((a, b) => (porP[b.id]?.length || 0) - (porP[a.id]?.length || 0) || a.nombre.localeCompare(b.nombre));
+  document.getElementById('g-cards').replaceChildren(...orden.map(p => {
+    const lista = porP[p.id] || [];
+    const ultima = D.publicaciones.find(x => x.persona_id === p.id);
+    return el('article', {class: 'card persona'},
+      el('h3', {}, p.nombre, p.resumen_ia ? el('span', {class: 'badge', title: 'Resumen redactado con IA a partir de las publicaciones'}, 'IA') : null),
+      el('div', {class: 'cargo'}, p.cargo),
+      el('p', {}, p.resumen),
+      el('div', {class: 'stats'}, `${lista.length} publicaciones en el período`, ultima ? ` · última: ${fmtFecha.format(new Date(ultima.fecha))}` : ' · sin publicaciones registradas'),
+      el('div', {class: 'cuentas', style: 'margin-top:8px'}, ...REDES.filter(r => p.cuentas[r]).map(r => {
+        const c = p.cuentas[r];
+        return el('a', {href: c.url, target: '_blank', rel: 'noopener', class: c.error ? 'err' : '',
+          title: c.error ? 'Error en el último scraping: ' + c.error : (c.ultimo ? 'Último scraping: ' + fmtFecha.format(new Date(c.ultimo)) : 'Aún no scrapeado')},
+          dot(r), NR[r], c.error ? ' ⚠' : '');
+      })));
+  }));
+}
+
+let feedN = 30;
+function resaltar(texto, q) {
+  if (!q) return [texto];
+  const nt = norm(texto), nq = norm(q), out = []; let i = 0, j;
+  while ((j = nt.indexOf(nq, i)) !== -1) { out.push(texto.slice(i, j), el('mark', {}, texto.slice(j, j + nq.length))); i = j + nq.length; }
+  out.push(texto.slice(i)); return out;
+}
+function renderFeed(pubs, mas) {
+  if (!mas) feedN = 30;
+  const cont = document.getElementById('g-feed');
+  document.getElementById('sub-feed').textContent = `${pubs.length} publicaciones, de la más nueva a la más vieja.`;
+  const q = F.texto.trim();
+  cont.replaceChildren(...pubs.slice(0, feedN).map(p => el('article', {class: 'post'},
+    el('div', {class: 'cab'}, dot(p.red), el('span', {class: 'quien'}, P[p.persona_id]?.nombre || '?'),
+      el('span', {class: 'cuando'}, `${NR[p.red]} · ${p.tipo || 'post'} · ${fmtFecha.format(new Date(p.fecha))}`),
+      p.url ? el('a', {href: p.url, target: '_blank', rel: 'noopener', style: 'margin-left:auto'}, 'Abrir ↗') : null),
+    el('div', {class: 'txt'}, ...resaltar(p.texto || '(sin texto)', q)),
+    el('div', {class: 'pie'},
+      el('span', {}, `♥ ${fmtN(p.likes || 0)}`), el('span', {}, `💬 ${fmtN(p.comentarios || 0)}`), el('span', {}, `↻ ${fmtN(p.compartidos || 0)}`),
+      p.vistas ? el('span', {}, `▶ ${fmtN(p.vistas)}`) : null,
+      ...p.temas.map(t => el('button', {class: 'tema-btn t', onclick: () => setTema(t)}, t)),
+      ...p.actividades.map(a => el('span', {}, '· ' + a))))));
+  if (!pubs.length) cont.replaceChildren(el('div', {class: 'vacio'}, 'No hay publicaciones con estos filtros.'));
+  const btn = document.getElementById('mas');
+  btn.hidden = pubs.length <= feedN;
+  btn.onclick = () => { feedN += 30; renderFeed(pubs, true); };
+}
+
+// --------------------------------------------------------------- cabecera / avisos
+const c = D.ultima_corrida;
+document.getElementById('meta').textContent = `Generado ${D.generado} · ${D.personas.length} personas · ${D.publicaciones.length} publicaciones guardadas` + (c ? ` · último scraping: ${fmtFecha.format(new Date(c.fin))} (${c.nuevas} nuevas)` : ' · todavía no se corrió el scraping');
+const errores = c ? JSON.parse(c.errores || '[]') : [];
+if (errores.length) document.getElementById('avisos').append(el('div', {class: 'aviso'}, el('b', {}, 'Errores en el último scraping: '), errores.join(' · ')));
+render();
+})();
+</script>
+</body>
+</html>
